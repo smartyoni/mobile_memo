@@ -1,388 +1,406 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // DOM 요소 가져오기
+    // DOM 요소
     const memoForm = document.getElementById('memo-form');
     const memoInput = document.getElementById('memo-input');
-    const memoList = document.getElementById('memo-list');
-    const tabContainerPC = document.querySelector('.tabs-container-header .tabs');
-    const addTabBtnPC = document.getElementById('add-tab-btn');
-    const tabContainerMobile = document.querySelector('.tabs-container-mobile .tabs');
-    const addTabBtnMobile = document.getElementById('add-tab-btn-mobile');
+    const addCategoryBtn = document.getElementById('add-category-btn');
+    const categoryAccordion = document.getElementById('category-accordion');
+    const datetimeElement = document.getElementById('current-datetime');
+
+    // 모달 관련 DOM 요소
     const viewModal = document.getElementById('view-modal');
     const editModal = document.getElementById('edit-modal');
     const closeModalBtns = document.querySelectorAll('.close-btn');
     const editForm = document.getElementById('edit-form');
-    const datetimeElement = document.getElementById('current-datetime');
-    const listHeader = document.getElementById('list-header');
-    const listHeaderTitle = document.getElementById('list-header-title');
-    const listHeaderActions = document.getElementById('list-header-actions');
 
-    let currentCategory = 'all';
-    let memoTabs = [];
+    // 앱 상태 변수
+    let categories = [];
+    let memos = [];
+    let activeCategoryId = null;
+    let expandedCategoryId = null;
 
-    const checkLayout = () => {
-        const isMobileBefore = document.body.classList.contains('mobile-layout');
-        if (window.innerWidth <= 768) {
-            document.body.classList.add('mobile-layout');
-        } else {
-            document.body.classList.remove('mobile-layout');
-        }
-        const isMobileAfter = document.body.classList.contains('mobile-layout');
-        if (isMobileBefore !== isMobileAfter) {
-            renderTabs();
-        }
-    };
+    // 색상 팔레트
+    const PRETTY_COLORS = [
+        '#FF6B6B', '#4ECDC4', '#45B7D1', '#FED766', '#E0BBE4', '#957DAD', '#FFC72C', '#2ECC71'
+    ];
 
-    const makeDraggable = (modalContent, handle) => {
-        let isDragging = false;
-        let offsetX, offsetY;
-        handle.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            const rect = modalContent.getBoundingClientRect();
-            modalContent.style.transform = 'none';
-            modalContent.style.left = `${rect.left}px`;
-            modalContent.style.top = `${rect.top}px`;
-            offsetX = e.clientX - rect.left;
-            offsetY = e.clientY - rect.top;
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-        });
-        function onMouseMove(e) {
-            if (!isDragging) return;
-            modalContent.style.left = `${e.clientX - offsetX}px`;
-            modalContent.style.top = `${e.clientY - offsetY}px`;
-        }
-        function onMouseUp() {
-            isDragging = false;
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-        }
-    };
-
-    const linkify = (plainText) => {
-        if (!plainText) return '';
-        let linkedText = plainText;
-        const markdownLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
-        linkedText = linkedText.replace(markdownLinkRegex, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-        const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])|(\bwww\.[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
-        linkedText = linkedText.replace(urlRegex, (url) => {
-            if (new RegExp(`href="https?:\/\/${url.replace(/^https?:\/\//, '')}"`).test(linkedText)) return url;
-            let href = url;
-            if (!href.match(/^[a-zA-Z]+:\/\//)) href = 'http://' + href;
-            return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
-        });
-        return linkedText;
-    };
-
-    const getRandomColor = () => {
-        const rainbowColors = ['#ff7675', '#fab1a0', '#fdcb6e', '#55efc4', '#74b9ff', '#a29bfe', '#fd79a8'];
-        return rainbowColors[Math.floor(Math.random() * rainbowColors.length)];
-    };
-
+    // --- 데이터 관리 ---
     const loadData = () => {
-        const memosJSON = localStorage.getItem('memos');
-        const tabsJSON = localStorage.getItem('memoTabs');
-        const memos = memosJSON ? JSON.parse(memosJSON) : [];
-        const tabs = tabsJSON ? JSON.parse(tabsJSON) : [{ name: '계약', color: '#3498db', icon: '📄' }, { name: '광고', color: '#e74c3c', icon: '📢' }, { name: '기타', color: '#95a5a6', icon: '📌' }];
-        return { memos, tabs };
-    };
-    const saveData = (data) => {
-        if (data.memos !== undefined) localStorage.setItem('memos', JSON.stringify(data.memos));
-        if (data.memoTabs !== undefined) localStorage.setItem('memoTabs', JSON.stringify(data.memoTabs));
-    };
-    
-    const renderTabs = () => {
-        const isMobile = document.body.classList.contains('mobile-layout');
-        const container = isMobile ? tabContainerMobile : tabContainerPC;
-        container.innerHTML = '';
-        const allTab = document.createElement('button');
-        allTab.className = 'tab-btn';
-        allTab.dataset.category = 'all';
-        if (isMobile) {
-            allTab.innerHTML = `<span class="tab-icon">🗂️</span><span class="tab-text">전체</span>`;
-        } else {
-            allTab.textContent = '전체';
-        }
-        container.appendChild(allTab);
-        memoTabs.forEach(tab => {
-            const tabBtn = document.createElement('button');
-            tabBtn.className = 'tab-btn';
-            tabBtn.dataset.category = tab.name;
-            if (isMobile) {
-                tabBtn.innerHTML = `<span class="tab-icon">${tab.icon || '📑'}</span><span class="tab-text">${tab.name}</span>`;
-            } else {
-                tabBtn.style.setProperty('--tab-color', tab.color);
-                tabBtn.innerHTML = `<span>${tab.name}</span>`;
+        let loadedCategories = JSON.parse(localStorage.getItem('categories')) || [];
+        const loadedMemos = JSON.parse(localStorage.getItem('memos')) || [];
+        
+        // 데이터 마이그레이션: 기존 카테고리에 색상 속성 추가
+        loadedCategories.forEach((cat, index) => {
+            if (!cat.color) {
+                cat.color = PRETTY_COLORS[index % PRETTY_COLORS.length];
             }
-            container.appendChild(tabBtn);
         });
-        document.querySelectorAll(`.tab-btn[data-category="${currentCategory}"]`).forEach(tab => tab.classList.add('active'));
-    };
 
-    const renderListHeader = () => {
-        listHeaderActions.innerHTML = '';
-        if (currentCategory === 'all' || !currentCategory) {
-            listHeaderTitle.textContent = '메모 목록';
+        // 기본 IN-BOX 카테고리 처리
+        let inBox = loadedCategories.find(c => c.id === 'in-box');
+        if (!inBox) {
+            // IN-BOX가 없으면 새로 생성
+            inBox = { id: 'in-box', name: 'IN-BOX', createdAt: Date.now(), color: '#FF69B4' };
+            categories = [inBox, ...loadedCategories];
         } else {
-            listHeaderTitle.textContent = currentCategory;
-            const editBtn = document.createElement('button');
-            editBtn.className = 'edit-btn';
-            editBtn.textContent = '이름 수정';
-            editBtn.onclick = handleEditTabName;
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'delete-btn';
-            deleteBtn.textContent = '탭 삭제';
-            deleteBtn.onclick = handleDeleteTab;
-            listHeaderActions.appendChild(editBtn);
-            listHeaderActions.appendChild(deleteBtn);
+            // IN-BOX가 있으면 색상만 업데이트
+            inBox.color = '#FF69B4'; // 강제로 핑크색으로 설정
+            categories = loadedCategories;
         }
+        
+        memos = loadedMemos;
+        saveData(); // 마이그레이션 및 업데이트된 데이터 저장
     };
-    
-    const renderEditCategoryDropdown = () => {
-        const selectElement = document.getElementById('edit-category');
-        selectElement.innerHTML = '';
-        memoTabs.forEach(tab => {
-            const option = document.createElement('option');
-            option.value = tab.name;
-            option.textContent = tab.name;
-            selectElement.appendChild(option);
+
+    const saveData = () => {
+        localStorage.setItem('categories', JSON.stringify(categories));
+        localStorage.setItem('memos', JSON.stringify(memos));
+    };
+
+    // --- 렌더링 ---
+    const render = () => {
+        categoryAccordion.innerHTML = ''; // 아코디언 비우기
+
+        const sortedCategories = [...categories].sort((a, b) => {
+            if (a.id === expandedCategoryId) return -1;
+            if (b.id === expandedCategoryId) return 1;
+            if (a.id === 'in-box') return -1; // IN-BOX는 항상 위로
+            if (b.id === 'in-box') return 1;
+            return b.createdAt - a.createdAt; // 최신순 정렬
+        });
+
+        sortedCategories.forEach(category => {
+            const categoryMemos = memos.filter(memo => memo.categoryId === category.id);
+            const isExpanded = category.id === expandedCategoryId;
+            const isSelected = category.id === activeCategoryId;
+
+            const categoryItem = document.createElement('div');
+            categoryItem.className = `category-item ${isExpanded ? 'expanded' : ''} ${isSelected ? 'selected' : ''}`;
+            categoryItem.dataset.id = category.id;
+            categoryItem.style.setProperty('--category-bg-color', category.color);
+
+            categoryItem.innerHTML = `
+                <div class="category-header">
+                    <h3>${category.name} (${categoryMemos.length})</h3>
+                    <div class="category-controls-buttons">
+                        <button class="edit-category-btn">수정</button>
+                        ${category.id !== 'in-box' ? '<button class="delete-category-btn">삭제</button>' : ''}
+                    </div>
+                </div>
+                <div class="memo-list-inner">
+                    ${categoryMemos.map(memo => `
+                        <div class="memo-item" data-memo-id="${memo.id}">
+                            <span class="memo-title">${memo.title}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            categoryAccordion.appendChild(categoryItem);
+        });
+
+        addEventListenersToItems();
+    };
+
+    // --- 이벤트 리스너 ---
+    const addEventListenersToItems = () => {
+        document.querySelectorAll('.category-header').forEach(header => {
+            header.addEventListener('click', handleCategoryHeaderClick);
+        });
+        document.querySelectorAll('.memo-item').forEach(item => {
+            item.addEventListener('click', handleMemoItemClick);
+        });
+        document.querySelectorAll('.edit-category-btn').forEach(btn => {
+            btn.addEventListener('click', handleEditCategory);
+        });
+        document.querySelectorAll('.delete-category-btn').forEach(btn => {
+            btn.addEventListener('click', handleDeleteCategory);
         });
     };
 
-    const renderMemos = () => {
-        const { memos } = loadData();
-        memoList.innerHTML = '';
-        const filteredMemos = memos.filter(memo => currentCategory === 'all' || memo.category === currentCategory);
-        filteredMemos.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
-        filteredMemos.forEach(memo => {
-            const li = document.createElement('li');
-            li.className = memo.isPinned ? 'pinned' : '';
-            li.dataset.id = memo.id;
-            li.innerHTML = `<button class="pin-btn ${memo.isPinned ? 'pinned' : ''}" title="고정">${memo.isPinned ? '📌' : '📍'}</button><span class="memo-title">${memo.title}</span>`;
-            memoList.appendChild(li);
-        });
-    };
-    
-    const handleAddTab = () => {
-        const newTabName = prompt("새로운 카테고리 이름을 입력하세요:", `새 카테고리 ${memoTabs.length + 1}`);
-        if (newTabName && !memoTabs.find(tab => tab.name === newTabName)) {
-            memoTabs.push({ name: newTabName, color: getRandomColor(), icon: '📑' });
-            saveData({ memoTabs });
-            renderTabs();
-            renderEditCategoryDropdown();
-        } else if (newTabName) {
-            alert("이미 존재하는 이름입니다.");
-        }
-    };
-    addTabBtnPC.addEventListener('click', handleAddTab);
-    addTabBtnMobile.addEventListener('click', handleAddTab);
-
-    const handleTabClick = (e) => {
-        const tabBtn = e.target.closest('.tab-btn');
-        if (tabBtn) {
-            currentCategory = tabBtn.dataset.category;
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll(`.tab-btn[data-category="${currentCategory}"]`).forEach(btn => btn.classList.add('active'));
-            renderMemos();
-            renderListHeader();
-        }
-    };
-    document.querySelector('.tabs-container-header').addEventListener('click', handleTabClick);
-    document.querySelector('.tabs-container-mobile').addEventListener('click', handleTabClick);
-    
-    const handleEditTabName = () => {
-        const oldTabName = currentCategory;
-        const newTabName = prompt("새로운 카테고리 이름을 입력하세요:", oldTabName);
-        if (newTabName && newTabName !== oldTabName && !memoTabs.find(t => t.name === newTabName)) {
-            const tab = memoTabs.find(t => t.name === oldTabName);
-            if (tab) tab.name = newTabName;
-            const { memos } = loadData();
-            const updatedMemos = memos.map(memo => memo.category === oldTabName ? { ...memo, category: newTabName } : memo);
-            saveData({ memoTabs, memos: updatedMemos });
-            currentCategory = newTabName;
-            renderTabs();
-            renderEditCategoryDropdown();
-            renderMemos();
-            renderListHeader();
-        } else if (newTabName && newTabName !== oldTabName) {
-            alert("이미 존재하는 이름입니다.");
-        }
-    };
-
-    const handleDeleteTab = () => {
-        const tabNameToDelete = currentCategory;
-        if (confirm(`'${tabNameToDelete}' 탭을 삭제하시겠습니까?\n이 탭에 포함된 모든 메모도 함께 삭제됩니다.`)) {
-            let { memos } = loadData();
-            const updatedMemos = memos.filter(memo => memo.category !== tabNameToDelete);
-            memoTabs = memoTabs.filter(tab => tab.name !== tabNameToDelete);
-            saveData({ memos: updatedMemos, memoTabs });
-            currentCategory = 'all';
-            renderTabs();
-            renderEditCategoryDropdown();
-            renderMemos();
-            renderListHeader();
-        }
-    };
-    
-    memoForm.addEventListener('submit', (e) => {
+    // --- 이벤트 핸들러 ---
+    const handleQuickMemoSubmit = (e) => {
         e.preventDefault();
         const fullText = memoInput.value.trim();
-        if (fullText) {
-            const lines = fullText.split('\n');
-            const title = lines[0];
-            const content = fullText;
-            const { memos } = loadData();
-            const categoryToSave = (currentCategory === 'all' || !memoTabs.find(t => t.name === currentCategory)) ? (memoTabs[0]?.name || '기타') : currentCategory;
-            const newMemo = { id: Date.now().toString(), title, content, isPinned: false, category: categoryToSave };
-            memos.push(newMemo);
-            saveData({ memos });
-            renderMemos();
-            memoForm.reset();
-        }
-    });
+        if (!fullText) return;
 
-    memoList.addEventListener('click', (e) => {
-        const li = e.target.closest('li');
-        if (!li) return;
-        const { memos } = loadData();
-        const memoId = li.dataset.id;
-        const memo = memos.find(m => String(m.id) === memoId);
-        if (!memo) return;
-        const pinBtn = e.target.closest('.pin-btn');
-        if (pinBtn) {
-            memo.isPinned = !memo.isPinned;
-            saveData({ memos });
-            renderMemos();
-            return;
-        }
-        viewModal.querySelector('.modal-content').style.cssText = '';
-        document.getElementById('view-title').textContent = memo.title;
-        document.getElementById('view-content').innerHTML = linkify(memo.content);
-        const modalActions = viewModal.querySelector('.modal-actions');
-        modalActions.innerHTML = `
-            <button id="copy-memo-btn-popup" class="modal-btn">복사</button>
-            <button id="edit-memo-btn-popup" class="modal-btn">수정</button>
-            ${!memo.isPinned ? `<button id="delete-memo-btn-popup" class="modal-btn">삭제</button>` : ''}
-        `;
-        viewModal.style.display = 'block';
-        modalActions.querySelector('#copy-memo-btn-popup').addEventListener('click', () => {
-             const content = document.getElementById('view-content').textContent;
-             navigator.clipboard.writeText(content).then(() => {
-                const btn = modalActions.querySelector('#copy-memo-btn-popup');
-                const originalText = btn.textContent;
-                btn.textContent = '복사 완료!';
-                btn.disabled = true;
-                setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 1500);
-             });
-        });
-        modalActions.querySelector('#edit-memo-btn-popup').addEventListener('click', () => {
-            viewModal.style.display = 'none';
-            const editModalContent = editModal.querySelector('.modal-content');
-            editModalContent.style.cssText = ''; // Reset styles
+        const lines = fullText.split('\n');
+        const title = lines[0];
+        const newMemo = {
+            id: Date.now().toString(),
+            title: title,
+            content: fullText,
+            categoryId: activeCategoryId || 'in-box',
+            createdAt: Date.now()
+        };
 
-            document.getElementById('edit-id').value = memo.id;
-            document.getElementById('edit-input').value = memo.content;
-            renderEditCategoryDropdown();
-            document.getElementById('edit-category').value = memo.category || (memoTabs[0]?.name || '');
-            editModal.style.display = 'block';
+        memos.push(newMemo);
+        saveData();
+        render();
+        memoForm.reset();
+    };
 
-            // On mobile, move modal to top to avoid keyboard overlap
-            if (document.body.classList.contains('mobile-layout')) {
-                editModalContent.style.top = '5%';
-                editModalContent.style.transform = 'translate(-50%, 0)';
-                document.getElementById('edit-input').focus(); // Focus input to bring up keyboard
-            }
-        });
-        const deleteBtn = modalActions.querySelector('#delete-memo-btn-popup');
-        if (deleteBtn) {
-            deleteBtn.addEventListener('click', () => {
-                if (confirm(`'${memo.title}' 메모를 정말 삭제하시겠습니까?`)) {
-                    const updatedMemos = memos.filter(m => String(m.id) !== memoId);
-                    saveData({ memos: updatedMemos });
-                    renderMemos();
-                    viewModal.style.display = 'none';
-                }
-            });
-        }
-    });
-    
-    closeModalBtns.forEach(btn => {
-        btn.onclick = () => { viewModal.style.display = 'none'; editModal.style.display = 'none'; };
-    });
-    window.onclick = (event) => {
-        if (event.target == viewModal || event.target == editModal) {
-            viewModal.style.display = 'none';
-            editModal.style.display = 'none';
+    const handleAddCategory = () => {
+        const name = prompt('새 카테고리 이름을 입력하세요:');
+        if (name && name.trim()) {
+            const newCategory = {
+                id: Date.now().toString(),
+                name: name.trim(),
+                createdAt: Date.now(),
+                color: PRETTY_COLORS[categories.length % PRETTY_COLORS.length]
+            };
+            categories.push(newCategory);
+            saveData();
+            render();
         }
     };
 
-    editForm.addEventListener('submit', (e) => {
+    const handleCategoryHeaderClick = (e) => {
+        if (e.target.closest('button')) return;
+        const categoryItem = e.target.closest('.category-item');
+        const categoryId = categoryItem.dataset.id;
+
+        if (expandedCategoryId === categoryId) {
+            expandedCategoryId = null;
+        } else {
+            expandedCategoryId = categoryId;
+        }
+
+        if (activeCategoryId === categoryId) {
+            activeCategoryId = null;
+        } else {
+            activeCategoryId = categoryId;
+        }
+
+        render();
+    };
+
+    const handleMemoItemClick = (e) => {
+        const memoId = e.currentTarget.dataset.memoId;
+        const memo = memos.find(m => m.id === memoId);
+        if (memo) openViewModal(memo);
+    };
+
+    const handleEditCategory = (e) => {
+        e.stopPropagation();
+        const categoryId = e.target.closest('.category-item').dataset.id;
+        const category = categories.find(c => c.id === categoryId);
+        if (!category) return;
+
+        const newName = prompt('카테고리 새 이름을 입력하세요:', category.name);
+        if (newName && newName.trim()) {
+            category.name = newName.trim();
+            saveData();
+            render();
+        }
+    };
+
+    const handleDeleteCategory = (e) => {
+        e.stopPropagation();
+        const categoryId = e.target.closest('.category-item').dataset.id;
+        if (categoryId === 'in-box') return;
+
+        const category = categories.find(c => c.id === categoryId);
+        if (confirm(`정말 '${category.name}' 카테고리를 삭제하시겠습니까?\n\n경고: 이 카테고리에 포함된 모든 메모가 영구적으로 삭제됩니다.`)) {
+            // 카테고리에 속한 메모들을 삭제
+            memos = memos.filter(memo => memo.categoryId !== categoryId);
+            // 카테고리 삭제
+            categories = categories.filter(c => c.id !== categoryId);
+            
+            if (activeCategoryId === categoryId) activeCategoryId = null;
+            if (expandedCategoryId === categoryId) expandedCategoryId = null;
+
+            saveData();
+            render();
+        }
+    };
+
+    // --- 모달 관리 ---
+    const openViewModal = (memo) => {
+        const viewModalContent = viewModal.querySelector('.modal-content');
+        const modalBody = viewModal.querySelector('.modal-body');
+        const viewContent = document.getElementById('view-content');
+        const modalFooter = document.getElementById('view-modal-footer');
+
+        // 상태 초기화
+        viewModalContent.style.top = '8%';
+        viewModalContent.style.transform = 'translateX(-50%)';
+        modalBody.style.position = 'relative'; // 책갈피 마커를 위한 기준점
+
+        const renderBookmarkUI = () => {
+            // 기존 UI 초기화
+            modalFooter.innerHTML = '';
+            const existingMarker = modalBody.querySelector('.bookmark-marker');
+            if (existingMarker) existingMarker.remove();
+
+            document.getElementById('view-title').textContent = memo.title;
+            
+            // URL을 하이퍼링크로 변환하는 함수
+            const convertUrlsToLinks = (text) => {
+                const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`\[\]]+)/gi;
+                return text.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+            };
+
+            // 마크다운 렌더링
+            try {
+                let contentToRender = memo.content;
+                
+                // 마크다운 링크가 아닌 일반 URL들을 먼저 마크다운 링크로 변환
+                contentToRender = contentToRender.replace(
+                    /(^|[^[\]()])(https?:\/\/[^\s<>"{}|\\^`\[\]]+)(?![^\[]*\])/gim,
+                    '$1[$2]($2)'
+                );
+                
+                const renderedContent = marked.parse(contentToRender);
+                viewContent.innerHTML = renderedContent;
+            } catch (error) {
+                // 마크다운 파싱 실패 시 일반 텍스트로 표시하되 URL은 링크로 변환
+                const textWithLinks = convertUrlsToLinks(memo.content);
+                viewContent.innerHTML = textWithLinks.replace(/\n/g, '<br>');
+            }
+
+            // 책갈피 마커 렌더링
+            if (memo.bookmarkPosition > 0) {
+                const marker = document.createElement('div');
+                marker.className = 'bookmark-marker';
+                marker.innerHTML = '🔖';
+                marker.style.top = `${memo.bookmarkPosition}px`; 
+                modalBody.appendChild(marker);
+            }
+
+            // 버튼 렌더링
+            const setBookmarkBtn = document.createElement('button');
+            setBookmarkBtn.id = 'set-bookmark-btn';
+            setBookmarkBtn.className = 'modal-btn';
+            setBookmarkBtn.textContent = '책갈피';
+            setBookmarkBtn.onclick = () => {
+                if (memo.bookmarkPosition > 0) {
+                    // 이미 책갈피가 설정되어 있으면 초기화
+                    memo.bookmarkPosition = 0;
+                } else {
+                    // 책갈피 설정
+                    memo.bookmarkPosition = modalBody.scrollTop;
+                }
+                saveData();
+                renderBookmarkUI(); // UI 즉시 업데이트
+            };
+
+            const gotoBookmarkBtn = document.createElement('button');
+            gotoBookmarkBtn.id = 'goto-bookmark-btn';
+            gotoBookmarkBtn.className = 'modal-btn';
+            gotoBookmarkBtn.textContent = '이동';
+            gotoBookmarkBtn.style.display = memo.bookmarkPosition > 0 ? 'inline-block' : 'none';
+            gotoBookmarkBtn.onclick = () => {
+                modalBody.scrollTo({ top: memo.bookmarkPosition, behavior: 'smooth' });
+            };
+            
+            const copyBtn = document.createElement('button');
+            copyBtn.textContent = '복사';
+            copyBtn.className = 'modal-btn';
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(memo.content).then(() => alert('복사되었습니다.'));
+            };
+
+            const editBtn = document.createElement('button');
+            editBtn.textContent = '수정';
+            editBtn.className = 'modal-btn';
+            editBtn.onclick = () => {
+                viewModal.style.display = 'none';
+                openEditModal(memo);
+            };
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = '삭제';
+            deleteBtn.className = 'modal-btn';
+            deleteBtn.onclick = () => {
+                if (confirm('정말 이 메모를 삭제하시겠습니까?')) {
+                    memos = memos.filter(m => m.id !== memo.id);
+                    saveData();
+                    render();
+                    closeModal();
+                }
+            };
+
+            modalFooter.append(setBookmarkBtn, gotoBookmarkBtn, copyBtn, editBtn, deleteBtn);
+        }
+
+        renderBookmarkUI();
+        viewModal.style.display = 'flex';
+        // 모달이 열린 직후 스크롤 위치를 0으로 초기화
+        setTimeout(() => { modalBody.scrollTop = 0; }, 0);
+    };
+
+    const openEditModal = (memo) => {
+        document.getElementById('edit-id').value = memo.id;
+        document.getElementById('edit-input').value = memo.content;
+        
+        const categorySelect = document.getElementById('edit-category');
+        categorySelect.innerHTML = categories.map(c => 
+            `<option value="${c.id}" ${c.id === memo.categoryId ? 'selected' : ''}>${c.name}</option>`
+        ).join('');
+
+        const editModalContent = editModal.querySelector('.modal-content');
+        editModalContent.style.top = '5%';
+        editModalContent.style.left = '50%';
+        editModalContent.style.transform = 'translateX(-50%)';
+
+        setTimeout(() => {
+            document.getElementById('edit-input').focus();
+            document.getElementById('edit-input').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+
+        editModal.style.display = 'flex';
+    };
+
+    const handleEditFormSubmit = (e) => {
         e.preventDefault();
         const id = document.getElementById('edit-id').value;
-        const fullText = document.getElementById('edit-input').value.trim();
-        const newCategory = document.getElementById('edit-category').value;
-        const lines = fullText.split('\n');
-        const newTitle = lines[0];
-        const newContent = fullText;
-        const { memos } = loadData();
-        const updatedMemos = memos.map(m => String(m.id) === id ? { ...m, title: newTitle, content: newContent, category: newCategory } : m);
-        saveData({ memos: updatedMemos });
+        const content = document.getElementById('edit-input').value.trim();
+        const categoryId = document.getElementById('edit-category').value;
+
+        if (!content) return;
+
+        const memo = memos.find(m => m.id === id);
+        if (memo) {
+            memo.content = content;
+            memo.title = content.split('\n')[0];
+            memo.categoryId = categoryId;
+        }
+
+        saveData();
+        render();
         editModal.style.display = 'none';
-        renderMemos();
-    });
+    };
 
-    
-    new Sortable(tabContainerPC, {
-        animation: 150,
-        filter: '.tab-btn[data-category="all"]',
-        onEnd: (evt) => {
-            const [movedTab] = memoTabs.splice(evt.oldIndex - 1, 1);
-            memoTabs.splice(evt.newIndex - 1, 0, movedTab);
-            saveData({ memoTabs });
-            renderTabs();
-        }
-    });
+    const closeModal = () => {
+        viewModal.style.display = 'none';
+        editModal.style.display = 'none';
+    };
 
-    function updateTime() {
+    // --- 시간 업데이트 ---
+    const updateTime = () => {
+        if (!datetimeElement) return;
         const now = new Date();
-        const days = ['일', '월', '화', '수', '목', '금', '토'];
-        const year = now.getFullYear();
-        const month = now.getMonth() + 1;
-        const day = now.getDate();
-        const dayOfWeek = days[now.getDay()];
-        let hours = now.getHours();
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        const ampm = hours >= 12 ? '오후' : '오전';
-        hours = hours % 12;
-        hours = hours ? hours : 12;
-        const formattedDatetime = `${year}년 ${month}월 ${day}일 (${dayOfWeek}) ${ampm} ${hours}:${minutes}`;
-        datetimeElement.textContent = formattedDatetime;
-    }
-    
+        const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long', hour: 'numeric', minute: 'numeric' };
+        datetimeElement.textContent = now.toLocaleString('ko-KR', options);
+    };
+
+    // --- 초기화 ---
     const initialize = () => {
-        makeDraggable(document.querySelector('#view-modal .modal-content'), document.querySelector('#view-modal .modal-header'));
-        makeDraggable(document.querySelector('#edit-modal .modal-content'), document.querySelector('#edit-modal .modal-header'));
-        let data = loadData();
-        if (data.tabs.length > 0 && typeof data.tabs[0] === 'string') {
-            const newTabs = data.tabs.map(tabName => ({ name: tabName, color: getRandomColor() }));
-            saveData({ memoTabs: newTabs });
-            data.tabs = newTabs;
-        }
-        memoTabs = data.tabs;
-        saveData({ memoTabs });
-        renderTabs();
-        renderEditCategoryDropdown();
-        renderMemos();
-        renderListHeader();
+        loadData();
+        render();
+
+        memoForm.addEventListener('submit', handleQuickMemoSubmit);
+        addCategoryBtn.addEventListener('click', handleAddCategory);
+        editForm.addEventListener('submit', handleEditFormSubmit);
+        closeModalBtns.forEach(btn => btn.addEventListener('click', closeModal));
+        window.addEventListener('click', (e) => {
+            if (e.target == viewModal || e.target == editModal) {
+                closeModal();
+            }
+        });
+
         updateTime();
         setInterval(updateTime, 1000);
-        const urlParams = new URLSearchParams(window.location.search);
-        const sharedText = urlParams.get('text');
-        if (sharedText) {
-            memoInput.value = sharedText;
-            memoInput.scrollIntoView({ behavior: 'smooth' });
-        }
-        checkLayout();
-        window.addEventListener('resize', checkLayout);
     };
 
     initialize();

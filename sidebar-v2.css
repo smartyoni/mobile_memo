@@ -1,0 +1,690 @@
+/* 기본 스타일 리셋 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+/* 메인 컨테이너 */
+.main-container {
+    display: flex;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    height: calc(100vh - 40px);
+}
+
+/* 컬럼 기본 스타일 */
+.column {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+/* 왼쪽 컬럼 (메모 작성) */
+.left-column {
+    flex: 1;
+    min-width: 300px;
+}
+
+.left-column header {
+    padding: 30px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.left-column h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+    font-weight: 600;
+}
+
+#current-datetime {
+    font-size: 14px;
+    opacity: 0.9;
+    font-weight: normal;
+}
+
+#memo-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+#memo-input {
+    min-height: 200px;
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    font-size: 16px;
+    resize: vertical;
+    outline: none;
+    font-family: inherit;
+}
+
+#memo-input::placeholder {
+    color: #666;
+}
+
+button[type="submit"] {
+    padding: 12px 24px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+button[type="submit"]:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* 오른쪽 컬럼 (메모 목록) */
+.right-column {
+    flex: 1.5;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 탭 컨테이너 (PC용) */
+.tabs-container-header {
+    display: flex;
+    align-items: center;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    padding: 10px 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.tabs-container-header::-webkit-scrollbar {
+    display: none;
+}
+
+.tabs {
+    display: flex;
+    gap: 5px;
+    flex: 1;
+    min-width: 0;
+}
+
+.tab-btn {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    font-size: 14px;
+    position: relative;
+}
+
+.tab-btn:hover {
+    background: rgba(0, 123, 255, 0.1);
+    color: #007bff;
+}
+
+.tab-btn.active {
+    background: var(--tab-color, #007bff);
+    color: white;
+}
+
+.tab-btn[data-category="all"] {
+    background: #6c757d !important;
+    color: white;
+}
+
+.tab-btn[data-category="all"]:hover {
+    background: #5a6268 !important;
+}
+
+#add-tab-btn {
+    padding: 8px 12px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    margin-left: 10px;
+    transition: background-color 0.2s ease;
+}
+
+#add-tab-btn:hover {
+    background: #218838;
+}
+
+/* 리스트 헤더 */
+#list-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#list-header h2 {
+    color: #333;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+#list-header-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.edit-btn, .delete-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.edit-btn {
+    background: #17a2b8;
+    color: white;
+}
+
+.edit-btn:hover {
+    background: #138496;
+}
+
+.delete-btn {
+    background: #dc3545;
+    color: white;
+}
+
+.delete-btn:hover {
+    background: #c82333;
+}
+
+/* 메모 리스트 */
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#memo-list {
+    flex: 1;
+    list-style: none;
+    overflow-y: auto;
+    padding: 0;
+    margin: 0;
+}
+
+#memo-list li {
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#memo-list li:hover {
+    background: #f8f9fa;
+}
+
+#memo-list li.pinned {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+}
+
+.pin-btn {
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.pin-btn:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.pin-btn.pinned {
+    opacity: 1;
+    color: #ffc107;
+}
+
+.memo-title {
+    flex: 1;
+    font-weight: 500;
+    color: #333;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* 정렬 관련 스타일 */
+.sortable-ghost {
+    opacity: 0.4;
+    background: #f0f0f0;
+}
+
+/* 모달 스타일 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: white;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 0;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: move;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+}
+
+.close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.modal-body {
+    padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#view-content {
+    flex: 1;
+    overflow-y: auto;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    white-space: pre-wrap;
+    color: #333;
+}
+
+#view-content a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+#view-content a:hover {
+    text-decoration: underline;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.modal-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.modal-btn:nth-child(1) {
+    background: #28a745;
+    color: white;
+}
+
+.modal-btn:nth-child(1):hover {
+    background: #218838;
+}
+
+.modal-btn:nth-child(2) {
+    background: #17a2b8;
+    color: white;
+}
+
+.modal-btn:nth-child(2):hover {
+    background: #138496;
+}
+
+.modal-btn:nth-child(3) {
+    background: #dc3545;
+    color: white;
+}
+
+.modal-btn:nth-child(3):hover {
+    background: #c82333;
+}
+
+/* 수정 모달 폼 스타일 */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #333;
+}
+
+#edit-category {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    margin-bottom: 15px;
+}
+
+#edit-input {
+    width: 100%;
+    min-height: 150px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    margin-bottom: 15px;
+}
+
+#edit-form button[type="submit"] {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+
+#edit-form button[type="submit"]:hover {
+    background: #0056b3;
+}
+
+/* 모바일 탭 컨테이너 (기본적으로 숨김) */
+.tabs-container-mobile {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: white;
+    border-top: 1px solid #ddd;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    /* 안드로이드 네비게이션 바 높이 고려한 하단 여백 */
+    padding-bottom: 25px;
+    margin-bottom: 0;
+}
+
+/* 안전 영역을 위한 추가 패딩 (iOS Safari의 safe-area-inset 지원) */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .tabs-container-mobile {
+        padding-bottom: calc(25px + env(safe-area-inset-bottom));
+    }
+}
+
+.tabs-container-mobile .tabs {
+    padding: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-height: 80px;
+    overflow-y: auto;
+}
+
+.tabs-container-mobile .tab-btn {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 20px;
+    font-size: 14px;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 36px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tabs-container-mobile .tab-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.tabs-container-mobile .tab-btn:hover {
+    background: #f8f9fa;
+}
+
+.tabs-container-mobile .tab-btn.active:hover {
+    background: #0056b3;
+}
+
+.tab-icon {
+    font-size: 16px;
+}
+
+.tab-text {
+    font-size: 13px;
+}
+
+#add-tab-btn-mobile {
+    min-height: 48px;
+    min-width: 48px;
+    font-size: 20px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    margin: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: background-color 0.2s;
+}
+
+#add-tab-btn-mobile:hover {
+    background: #0056b3;
+}
+
+#add-tab-btn-mobile:active {
+    transform: scale(0.95);
+}
+
+/* 모바일 레이아웃 */
+@media screen and (max-width: 768px) {
+    body {
+        padding: 10px;
+        /* body 전체의 하단 패딩 제거 */
+        padding-bottom: 0;
+    }
+
+    .main-container {
+        flex-direction: column;
+        height: auto;
+        gap: 15px;
+        /* 모바일에서 메인 콘텐츠가 탭 컨테이너에 가려지지 않도록 */
+        padding-bottom: 130px !important;
+    }
+
+    .column {
+        min-height: auto;
+    }
+
+    .left-column {
+        order: 1;
+        min-width: auto;
+    }
+
+    .left-column header {
+        padding: 20px;
+    }
+
+    .left-column h2 {
+        font-size: 20px;
+        margin-bottom: 15px;
+    }
+
+    #memo-input {
+        min-height: 120px;
+    }
+
+    .right-column {
+        order: 2;
+        flex: 1;
+        min-height: 400px;
+    }
+
+    /* PC용 탭 컨테이너 숨기기 */
+    .tabs-container-header {
+        display: none;
+    }
+
+    /* 모바일용 탭 컨테이너 표시 */
+    .tabs-container-mobile {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    #list-header {
+        padding: 15px;
+    }
+
+    #list-header h2 {
+        font-size: 18px;
+    }
+
+    #memo-list li {
+        padding: 12px 15px;
+    }
+
+    .modal-content {
+        width: 95%;
+        max-height: 90vh;
+    }
+
+    .modal-header {
+        padding: 15px;
+    }
+
+    .modal-body {
+        padding: 15px;
+    }
+}
+
+/* 추가적인 반응형 조정 */
+@media screen and (max-height: 600px) {
+    /* 화면 높이가 낮을 때 탭 컨테이너 높이 조정 */
+    .tabs-container-mobile .tabs {
+        max-height: 60px;
+    }
+    
+    .main-container {
+        padding-bottom: 110px !important;
+    }
+}
+
+/* 가로 모드 대응 */
+@media screen and (max-width: 768px) and (orientation: landscape) {
+    .tabs-container-mobile {
+        padding-bottom: 15px;
+    }
+    
+    .main-container {
+        padding-bottom: 100px !important;
+    }
+}
+
+/* 모바일 레이아웃 클래스 */
+body.mobile-layout .tabs-container-header {
+    display: none;
+}
+
+body.mobile-layout .tabs-container-mobile {
+    display: flex;
+}
+
+@media screen and (min-width: 769px) {
+    body.mobile-layout .tabs-container-header {
+        display: flex;
+    }
+
+    body.mobile-layout .tabs-container-mobile {
+        display: none;
+    }
+}

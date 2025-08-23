@@ -123,8 +123,8 @@ body {
     margin-top: 10px; /* 상단 영역과 간격 */
     /* 모바일 스크롤 최적화 */
     -webkit-overflow-scrolling: touch;
-    /* 하단 안전 영역 확보 - 훨씬 더 큰 여백 */
-    padding-bottom: calc(120px + env(safe-area-inset-bottom, 40px));
+    /* 하단 안전 영역 확보 - 매우 큰 여백으로 확실하게 해결 */
+    padding-bottom: 200px;
 }
 
 

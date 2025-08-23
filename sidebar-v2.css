@@ -97,7 +97,7 @@ body {
 }
 
 #add-category-btn {
-    padding: 8px 16px;
+    padding: 10px 16px; /* Adjusted padding to match modal-btn height */
     background: #38a169;
     color: white;
     border: none;

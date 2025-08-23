@@ -33,17 +33,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!cat.color) {
                 cat.color = PRETTY_COLORS[index % PRETTY_COLORS.length];
             }
+            // 데이터 마이그레이션: order 속성 추가
+            if (cat.order === undefined) {
+                cat.order = index; // Assign initial order based on current index
+            }
         });
 
         // 기본 IN-BOX 카테고리 처리
         let inBox = loadedCategories.find(c => c.id === 'in-box');
         if (!inBox) {
             // IN-BOX가 없으면 새로 생성
-            inBox = { id: 'in-box', name: 'IN-BOX', createdAt: Date.now(), color: '#FF69B4' };
+            inBox = { id: 'in-box', name: 'IN-BOX', createdAt: Date.now(), color: '#FF69B4', order: -1 }; // Give IN-BOX a special order
             categories = [inBox, ...loadedCategories];
         } else {
-            // IN-BOX가 있으면 색상만 업데이트
+            // IN-BOX가 있으면 색상 및 order 업데이트
             inBox.color = '#FF69B4'; // 강제로 핑크색으로 설정
+            inBox.order = -1; // Ensure IN-BOX always has the lowest order
             categories = loadedCategories;
         }
         
@@ -61,11 +66,9 @@ document.addEventListener('DOMContentLoaded', () => {
         categoryAccordion.innerHTML = ''; // 아코디언 비우기
 
         const sortedCategories = [...categories].sort((a, b) => {
-            if (a.id === expandedCategoryId) return -1;
-            if (b.id === expandedCategoryId) return 1;
             if (a.id === 'in-box') return -1; // IN-BOX는 항상 위로
             if (b.id === 'in-box') return 1;
-            return b.createdAt - a.createdAt; // 최신순 정렬
+            return a.order - b.order; // Sort by order
         });
 
         sortedCategories.forEach(category => {
@@ -82,6 +85,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="category-header">
                     <h3>${category.name} (${categoryMemos.length})</h3>
                     <div class="category-controls-buttons">
+                        ${category.id !== 'in-box' ? `
+                            <button class="move-up-btn">▲</button>
+                            <button class="move-down-btn">▼</button>
+                        ` : ''}
                         <button class="edit-category-btn">수정</button>
                         ${category.id !== 'in-box' ? '<button class="delete-category-btn">삭제</button>' : ''}
                     </div>
@@ -115,6 +122,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.delete-category-btn').forEach(btn => {
             btn.addEventListener('click', handleDeleteCategory);
         });
+        document.querySelectorAll('.move-up-btn').forEach(btn => {
+            btn.addEventListener('click', moveCategoryUp);
+        });
+        document.querySelectorAll('.move-down-btn').forEach(btn => {
+            btn.addEventListener('click', moveCategoryDown);
+        });
     };
 
     // --- 이벤트 핸들러 ---
@@ -146,7 +159,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 id: Date.now().toString(),
                 name: name.trim(),
                 createdAt: Date.now(),
-                color: PRETTY_COLORS[categories.length % PRETTY_COLORS.length]
+                color: PRETTY_COLORS[categories.length % PRETTY_COLORS.length],
+                order: categories.length // Assign order
             };
             categories.push(newCategory);
             saveData();
@@ -171,6 +185,26 @@ document.addEventListener('DOMContentLoaded', () => {
             activeCategoryId = categoryId;
         }
 
+        // Move clicked category to just below IN-BOX
+        const clickedCategory = categories.find(c => c.id === categoryId);
+        if (clickedCategory && clickedCategory.id !== 'in-box') {
+            // Temporarily set its order to a very low value to bring it to the front (after in-box)
+            clickedCategory.order = -0.5; // A value between in-box (-1) and other categories (>=0)
+
+            // Re-sort categories based on the new temporary order and then re-assign sequential orders
+            let currentOrder = 0;
+            categories.sort((a, b) => {
+                if (a.id === 'in-box') return -1;
+                if (b.id === 'in-box') return 1;
+                return a.order - b.order;
+            }).forEach(cat => {
+                if (cat.id !== 'in-box') {
+                    cat.order = currentOrder++;
+                }
+            });
+        }
+
+        saveData(); // Save the new order
         render();
     };
 
@@ -214,6 +248,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const moveCategory = (categoryId, direction) => {
+        const categoryToMove = categories.find(c => c.id === categoryId);
+        if (!categoryToMove || categoryToMove.id === 'in-box') return;
+
+        // Get current sorted list to find actual neighbors
+        const currentSortedCategories = [...categories].sort((a, b) => {
+            if (a.id === 'in-box') return -1;
+            if (b.id === 'in-box') return 1;
+            return a.order - b.order;
+        });
+
+        const currentIndex = currentSortedCategories.findIndex(c => c.id === categoryId);
+        let targetIndex = currentIndex + direction;
+
+        if (targetIndex < 0 || targetIndex >= currentSortedCategories.length) return;
+        if (currentSortedCategories[targetIndex].id === 'in-box') return; // Cannot swap with in-box
+
+        const categoryToSwapWith = currentSortedCategories[targetIndex];
+
+        // Swap orders in the original categories array
+        const originalIndexToMove = categories.findIndex(c => c.id === categoryId);
+        const originalIndexToSwap = categories.findIndex(c => c.id === categoryToSwapWith.id);
+
+        [categories[originalIndexToMove].order, categories[originalIndexToSwap].order] = 
+        [categories[originalIndexToSwap].order, categories[originalIndexToMove].order];
+
+        saveData();
+        render();
+    };
+
+    const moveCategoryUp = (e) => {
+        e.stopPropagation();
+        const categoryId = e.target.closest('.category-item').dataset.id;
+        moveCategory(categoryId, -1);
+    };
+
+    const moveCategoryDown = (e) => {
+        e.stopPropagation();
+        const categoryId = e.target.closest('.category-item').dataset.id;
+        moveCategory(categoryId, 1);
+    };
+
     // --- 모달 관리 ---
     const openViewModal = (memo) => {
         const viewModalContent = viewModal.querySelector('.modal-content');
@@ -240,23 +316,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return text.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
             };
 
-            // 마크다운 렌더링
-            try {
-                let contentToRender = memo.content;
-                
-                // 마크다운 링크가 아닌 일반 URL들을 먼저 마크다운 링크로 변환
-                contentToRender = contentToRender.replace(
-                    /(^|[^[\]()])(https?:\/\/[^\s<>"{}|\\^`\[\]]+)(?![^\[]*\])/gim,
-                    '$1[$2]($2)'
-                );
-                
-                const renderedContent = marked.parse(contentToRender);
-                viewContent.innerHTML = renderedContent;
-            } catch (error) {
-                // 마크다운 파싱 실패 시 일반 텍스트로 표시하되 URL은 링크로 변환
-                const textWithLinks = convertUrlsToLinks(memo.content);
-                viewContent.innerHTML = textWithLinks.replace(/\n/g, '<br>');
-            }
+            // 마크다운 렌더링 제거: 입력된 그대로 표시
+            const textWithLinks = convertUrlsToLinks(memo.content);
+            viewContent.innerHTML = textWithLinks.replace(/\n/g, '<br>');
 
             // 책갈피 마커 렌더링
             if (memo.bookmarkPosition > 0) {
@@ -297,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
             copyBtn.textContent = '복사';
             copyBtn.className = 'modal-btn';
             copyBtn.onclick = () => {
-                navigator.clipboard.writeText(memo.content).then(() => alert('복사되었습니다.'));
+                navigator.clipboard.writeText(memo.content).then(() => {});
             };
 
             const editBtn = document.createElement('button');
